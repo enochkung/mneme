@@ -1,25 +1,34 @@
 import pygame
 
 from cartograph import Cartograph
+from gameConstants import ColourConstants
 from mneme import Mneme
 import os
 
 
 if __name__ == '__main__':
+    root_dir = 'test_folder'
     mneme = Mneme()
-    directory = mneme.directory_reader()
-
-    ctg = Cartograph()
+    mneme.directory_reader('test_folder')
+    mneme.object_log()
 
     # -------------- start game -----------------
     pygame.init()
-    scr = pygame.display.set_mode((600, 500))
+    scr = pygame.display.set_mode((1500, 900))
+    scr.fill(ColourConstants.BACKGROUND)
     pygame.display.set_caption('MnemeV1')
+
+    ctg = Cartograph(scr)
+    ctg.initialise_display_objects(mneme.scripts)
+
+    # Create initial diagram
 
     done = False
     while not done:
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_q):
                 done = True
+        pygame.display.update()
+        # Update diagram
 
     pygame.display.flip()
