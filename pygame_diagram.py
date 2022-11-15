@@ -7,9 +7,9 @@ import os
 
 
 if __name__ == '__main__':
-    root_dir = 'test_folder'
+    root_dir = os.getcwd() + '\\' + 'test_folder'
     mneme = Mneme()
-    mneme.directory_reader('test_folder')
+    mneme.directory_reader(root_dir)
     mneme.object_log()
 
     # -------------- start game -----------------
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     scr.fill(ColourConstants.BACKGROUND)
     pygame.display.set_caption('MnemeV1')
 
-    ctg = Cartograph(scr)
+    ctg = Cartograph(scr, mneme)
     ctg.initialise_display_objects(mneme.scripts)
 
     # Create initial diagram

@@ -15,6 +15,7 @@ class MneScript:
         self.imports: Set[MneImport] = imports
         self.classes: Set[MneClass] = classes
         self.functions: Set[MneFunc] = functions
+        self.level: int = 0
 
 
 class MneClass:
@@ -54,7 +55,7 @@ class Mneme:
     ignored_script_set: Set[str] = set()
 
     def directory_reader(self, root_dir) -> None:
-        self.root_dir = os.getcwd() + '\\' + root_dir
+        self.root_dir = root_dir
         self.mnedir_dict = dict()
 
         os_walk = os.walk(self.root_dir)
@@ -82,11 +83,13 @@ class Mneme:
         """
         for directory, mnedir in self.mnedir_dict.items():
             for pyscript in mnedir.sub_pyscripts:
-                with open(self.root_dir + '\\' + pyscript) as f:
+                with open(directory + '\\' + pyscript) as f:
                     # TODO: different directories may have same pyscript
                     lines = f.readlines()
-                    imports, classes, functions = self.get_objects(lines, self.root_dir + '\\' + pyscript)
-                    self.scripts.append(MneScript(self.root_dir + '\\' + pyscript, imports, classes, functions))
+                    imports, classes, functions = self.get_objects(lines, directory + '\\' + pyscript)
+                    mneScript = MneScript(directory + '\\' + pyscript, imports, classes, functions)
+                    mneScript.level = len(mneScript.script_name.replace(self.root_dir + '\\', '').split('\\'))
+                    self.scripts.append(mneScript)
 
     def get_objects(self, lines: List[str], pyscript: str) -> \
             Tuple[List[MneImport], List[MneClass], List[MneFunc]]:
