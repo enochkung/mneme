@@ -48,9 +48,20 @@ class CtgConnection:
         self.target_object = targetScript
         self.colour = ColourConstants.WHITE
 
-    def draw(self, session):
-        pygame.draw.line(session, self.colour, self.source_object.screen_center,
-                         self.target_object.screen_center, width=2)
+    def draw(self, session, segments=None):
+        source_loc = self.source_object.screen_center
+        target_loc = self.target_object.screen_center
+        if any(source_loc[i] == target_loc[i] for i in range(2)) and segments is None:
+            segments = 1
+        else:
+            segments = 2
+
+        if segments == 1:
+            pygame.draw.line(session, self.colour, source_loc, target_loc)
+            return
+        if segments == 2:
+            pygame.draw.line(session, self.colour, source_loc, (source_loc[0], target_loc[1]))
+            pygame.draw.line(session, self.colour, (source_loc[0], target_loc[1]), target_loc)
 
 
 class Cartograph:
