@@ -3,7 +3,7 @@ from tkinter.filedialog import asksaveasfilename, askopenfilename
 import subprocess
 from tkinter.scrolledtext import ScrolledText
 
-from crius import Crius
+# from crius import Crius
 
 
 class CodeViz:
