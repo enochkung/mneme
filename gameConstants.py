@@ -23,3 +23,7 @@ class DimensionConstants:
     HEIGHT = 900
     SQUAREUNIT = 100
     MARGIN = 10
+    ConnectionWidth = 2
+    ScriptWidth = 2
+    ScriptHighlightWidth = 5
+    ConnectionHighlightWidth = 5
