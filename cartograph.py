@@ -25,14 +25,15 @@ class CtgScript:
         self.shape = dim
         self.colour = colour
         self.border_colour = ColourConstants.WHITE
+        self.width = DimensionConstants.ScriptWidth
         self.set_center(center)
 
     def get_pos_from_center(self) -> np.array:
         return np.array([self.center[0] - self.shape[0] / 2, self.center[1] + self.shape[1] / 2])
 
     def draw(self, session):
-        pygame.draw.rect(session, self.colour, self.rect, 0)
-        pygame.draw.rect(session, self.border_colour, self.rect, 1)
+        pygame.draw.rect(session, self.colour, self.rect, 0, border_radius=2)
+        pygame.draw.rect(session, self.border_colour, self.rect, width=self.width, border_radius=2)
 
     def set_center(self, center, screen_pos=False):
         self.center = center
@@ -45,12 +46,16 @@ class CtgScript:
         return (pos[0] >= self.center[0] - self.shape[0] / 2) and (pos[0] <= self.center[0] + self.shape[0] / 2) and \
                (pos[1] >= self.center[1] - self.shape[1] / 2) and (pos[1] <= self.center[1] + self.shape[1] / 2)
 
+    def highlight(self):
+        self.width = DimensionConstants.ScriptHighlightWidth
+
 
 class CtgConnection:
     def __init__(self, sourceScript, targetScript):
         self.source_object = sourceScript
         self.target_object = targetScript
         self.colour = ColourConstants.WHITE
+        self.width = DimensionConstants.ConnectionWidth
 
     def draw(self, session, segments=None):
         source_loc = self.source_object.screen_center
@@ -61,11 +66,11 @@ class CtgConnection:
             segments = 2
 
         if segments == 1:
-            pygame.draw.line(session, self.colour, source_loc, target_loc)
+            pygame.draw.line(session, self.colour, source_loc, target_loc, width=self.width)
             return
         if segments == 2:
-            pygame.draw.line(session, self.colour, source_loc, (source_loc[0], target_loc[1]))
-            pygame.draw.line(session, self.colour, (source_loc[0], target_loc[1]), target_loc)
+            pygame.draw.line(session, self.colour, source_loc, (source_loc[0], target_loc[1]), width=self.width)
+            pygame.draw.line(session, self.colour, (source_loc[0], target_loc[1]), target_loc, width=self.width)
 
 
 class CtgTextInput:
@@ -110,6 +115,7 @@ class Cartograph:
         self.mneme = mneme
         self.mne_objects = list()
         self.selected_obj = None
+        self.hovered_obj = None
         self.ctgScripts: Dict[str, CtgScript] = dict()
         self.ctgConnections: List[CtgConnection] = list()
         self.ctgTextInput: CtgTextInput = None
@@ -194,6 +200,12 @@ class Cartograph:
             self.selected_obj.relative_pos = np.array(center_screen_conversion(pos)) - np.array(
                 self.selected_obj.center)
 
+    def hover_obj(self, pos):
+        self.hovered_obj = self.get_object_from_mouse_pos(pos)
+        if self.hovered_obj is not None:
+            self.hovered_obj.relative_pos = np.array(center_screen_conversion(pos)) - np.array(
+                self.hovered_obj.center)
+
     def reset(self):
         self.set_grid()
         self.optimise_pos()
@@ -217,3 +229,21 @@ class Cartograph:
     def draw_input_text(self, object=None):
         self.ctgTextInput = CtgTextInput()
         self.ctgTextInput.draw(object)
+
+    def highlight_object(self, hover=True):
+        obj = self.hovered_obj if hover else self.selected_obj
+        obj.width = DimensionConstants.ScriptHighlightWidth if isinstance(obj, CtgScript) \
+            else DimensionConstants.ConnectionHighlightWidth
+        if isinstance(obj, CtgScript):
+            self.draw_script(obj)
+        elif isinstance(obj, CtgConnection):
+            self.draw_connection(obj)
+
+    def unhighlight_object(self, hover=True):
+        obj = self.hovered_obj if hover else self.selected_obj
+        obj.width = DimensionConstants.ScriptWidth if isinstance(obj, CtgScript) \
+            else DimensionConstants.ConnectionWidth
+        if isinstance(obj, CtgScript):
+            self.draw_script(obj)
+        elif isinstance(obj, CtgConnection):
+            self.draw_connection(obj)
