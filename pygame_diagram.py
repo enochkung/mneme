@@ -17,6 +17,7 @@ class PyGameDisplay:
         self.aux_menus = None
         self.ctg = None
         self.clock = pygame.time.Clock()
+        self.mouse_up = True
 
     def run_main(self):
         self.setup_mneme()
@@ -34,10 +35,10 @@ class PyGameDisplay:
                     break
                 self.check_mouse(event)
 
-                self.check_motion(event)
-                self.check_aux_menus(event)
+                # self.check_motion(event)
+                # self.check_aux_menus(event)
 
-                self.check_highlight()
+                # self.check_highlight()
 
             pygame.display.update()
         # Update diagram
@@ -79,20 +80,68 @@ class PyGameDisplay:
 
     def check_mouse_selected(self, event):
         """
-        1. keep object highlighted
-        2.
+        1. if click outside of selected, then selected becomes whatever is clicked
+        2. if click inside of selected and drag mouse, then selected is drag and ends still selected
+        3. otherwise, de-select
         :param event:
         :return:
         """
-        pass
+        pos = pygame.mouse.get_pos()
+        obj = self.ctg.get_object_from_mouse_pos(pos)
+        if self.mouse_up and event.type != pygame.MOUSEBUTTONDOWN:
+            self.ctg.hover_obj(obj=obj)
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.mouse_up = False
+            if obj != self.ctg.selected_obj:
+                self.ctg.unhighlight_object(hover=False)
+                self.ctg.selected_obj = obj
+                if obj is not None:
+                    self.ctg.highlight_object(hover=False)
+                return
+
+        if obj == self.ctg.selected_obj and event.type == pygame.MOUSEMOTION and not self.mouse_up:
+            pos = pygame.mouse.get_pos()
+            self.ctg.selected_obj.set_center(
+                np.array(center_screen_conversion(pos)) - np.array(self.ctg.selected_obj.relative_pos)
+            )
+            self.main_scr.fill(ColourConstants.BACKGROUND)
+            self.ctg.set_grid()
+            self.ctg.display_objects()
+            return
+        #     if not self.ctg.selected_obj.in_pos(center_screen_conversion(pos)):
+        #         self.ctg.unhighlight_object(hover=False)
+        #         self.ctg.selected_obj = None
+        #
+        # if event.type == pygame.MOUSEMOTION and not self.mouse_up:
+        #     pos = pygame.mouse.get_pos()
+        #     self.ctg.selected_obj.set_center(
+        #         np.array(center_screen_conversion(pos)) - np.array(self.ctg.selected_obj.relative_pos)
+        #     )
+        #     self.main_scr.fill(ColourConstants.BACKGROUND)
+        #     self.ctg.set_grid()
+        #     self.ctg.display_objects()
+
+        if event.type == pygame.MOUSEBUTTONUP:
+            self.mouse_up = True
+            self.ctg.unhighlight_object(hover=False)
 
     def check_mouse_unselected(self, event):
         pos = pygame.mouse.get_pos()
         if self.ctg.hovered_obj is not None and not self.ctg.hovered_obj.in_pos(center_screen_conversion(pos)):
+            # if mouse leaves hovered obj, then unhighlight obj
             self.ctg.unhighlight_object(hover=True)
         self.ctg.hover_obj(pos)
         if self.ctg.hovered_obj is not None:
+            # if mouse hovering above object, then highlight it
             self.ctg.highlight_object(hover=True)
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.mouse_up = False
+            if self.clock.tick() > 500:
+                obj = self.ctg.get_object_from_mouse_pos(pos)
+                if obj is not None:
+                    self.ctg.selected_obj = obj
+                    print('selected ', obj)
+                    self.ctg.highlight_object(hover=False)
 
     def check_motion(self, event):
         self.check_mouse_down(event)

@@ -200,8 +200,10 @@ class Cartograph:
             self.selected_obj.relative_pos = np.array(center_screen_conversion(pos)) - np.array(
                 self.selected_obj.center)
 
-    def hover_obj(self, pos):
-        self.hovered_obj = self.get_object_from_mouse_pos(pos)
+    def hover_obj(self, pos=None, obj=None):
+        if pos is None and obj is None:
+            return
+        self.hovered_obj = self.get_object_from_mouse_pos(pos) if obj is None else obj
         if self.hovered_obj is not None:
             self.hovered_obj.relative_pos = np.array(center_screen_conversion(pos)) - np.array(
                 self.hovered_obj.center)
