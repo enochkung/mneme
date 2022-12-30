@@ -43,11 +43,15 @@ class CtgScript:
         self.rect = pygame.Rect(self.screen_pos[0], self.screen_pos[1], self.shape[0], self.shape[1])
 
     def in_pos(self, pos):
-        return (pos[0] >= self.center[0] - self.shape[0] / 2) and (pos[0] <= self.center[0] + self.shape[0] / 2) and \
-               (pos[1] >= self.center[1] - self.shape[1] / 2) and (pos[1] <= self.center[1] + self.shape[1] / 2)
+        return self.rect.collidepoint(pos)
+        # return (pos[0] >= self.center[0] - self.shape[0] / 2) and (pos[0] <= self.center[0] + self.shape[0] / 2) and \
+        #        (pos[1] >= self.center[1] - self.shape[1] / 2) and (pos[1] <= self.center[1] + self.shape[1] / 2)
 
     def highlight(self):
         self.width = DimensionConstants.ScriptHighlightWidth
+
+    def is_highlighted(self):
+        return self.width == DimensionConstants.ScriptHighlightWidth
 
 
 class CtgConnection:
@@ -71,6 +75,9 @@ class CtgConnection:
         if segments == 2:
             pygame.draw.line(session, self.colour, source_loc, (source_loc[0], target_loc[1]), width=self.width)
             pygame.draw.line(session, self.colour, (source_loc[0], target_loc[1]), target_loc, width=self.width)
+
+    def is_highlighted(self):
+        return self.width == DimensionConstants.ConnectionHighlightWidth
 
 
 class CtgTextInput:
@@ -187,8 +194,8 @@ class Cartograph:
                     DimensionConstants.HEIGHT - coord_vert_increment * (level_num + 1)
                 )
 
-    def get_object_from_mouse_pos(self, pos):
-        ctg_pos = center_screen_conversion(pos)
+    def get_object_from_mouse_pos(self, pos, screen_pos=False):
+        ctg_pos = center_screen_conversion(pos) if not screen_pos else pos
         for script in self.ctgScripts.values():
             if script.in_pos(ctg_pos):
                 return script
@@ -200,10 +207,8 @@ class Cartograph:
             self.selected_obj.relative_pos = np.array(center_screen_conversion(pos)) - np.array(
                 self.selected_obj.center)
 
-    def hover_obj(self, pos=None, obj=None):
-        if pos is None and obj is None:
-            return
-        self.hovered_obj = self.get_object_from_mouse_pos(pos) if obj is None else obj
+    def hover_obj(self, pos=None, screen_pos=False):
+        self.hovered_obj = self.get_object_from_mouse_pos(pos, screen_pos=screen_pos)
         if self.hovered_obj is not None:
             self.hovered_obj.relative_pos = np.array(center_screen_conversion(pos)) - np.array(
                 self.hovered_obj.center)
