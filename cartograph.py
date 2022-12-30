@@ -1,10 +1,12 @@
-from tkinter.filedialog import askopenfilename
+from tkinter import TOP
+from tkinter.filedialog import askopenfilename, asksaveasfile, asksaveasfilename
 from typing import List, Dict, Tuple
 
 import numpy as np
 import pygame
 
 from gameConstants import ColourConstants, DimensionConstants
+from main import FileMenu
 from mneme import MneScript
 from utils import center_screen_conversion
 
@@ -81,18 +83,24 @@ class CtgConnection:
 
 
 class CtgTextInput:
-    def __init__(self):
+    def __init__(self, obj):
+        self.obj = obj
         self.shape = (int(DimensionConstants.WIDTH/2), int(DimensionConstants.HEIGHT/2))
         self.input_rect = None
         self.active = False
         self.base_font = None
         self.user_text = 'testing'
         self.tkCompiler = tk.Tk()
+        self.menu_bar = tk.Menu(self.tkCompiler, tearoff=False)
         self.editor = None
 
     def read_script(self, script):
         self.editor = ScrolledText(self.tkCompiler, bg='white', width=self.shape[0], height=self.shape[1])
         self.editor.pack(padx=DimensionConstants.MARGIN, pady=DimensionConstants.MARGIN)
+        self.menu_bar.add_command(label='Save', command=self.save)
+        self.menu_bar.add_command(label='Save As', command=self.save_as)
+        self.tkCompiler.config(menu=self.menu_bar)
+
         path = script.mneScript.script_name
         with open(path, 'r') as file:
             code = file.read()
@@ -100,13 +108,31 @@ class CtgTextInput:
             self.editor.insert('1.0', code)
         self.tkCompiler.mainloop()
 
+    def save(self):
+        if self.obj.mneScript.script_name == '':
+            self.save_as()
+            return
+        print(self.obj.mneScript.script_name)
+        self.save_as(self.obj.mneScript.script_name)
+
+    def save_as(self, path=None):
+        path = asksaveasfilename(filetypes=[('Python Files', '*.py')]) if path is None else path
+        with open(path, 'w') as file:
+            code = self.editor.get('1.0', tk.END)
+            file.write(code)
+            self.set_file_path(path)
+
+    def set_file_path(self, path):
+        self.editor.file_path = path
+
     def print_script(self):
         pass
 
     def create_empty_console(self):
         pass
 
-    def draw(self, object):
+    def draw(self):
+        object = self.obj
         if object is None:
             self.editor = ScrolledText(self.tkCompiler, bg='white', width=self.shape[0], height=self.shape[1])
             self.editor.pack(padx=DimensionConstants.MARGIN, pady=DimensionConstants.MARGIN)
@@ -242,8 +268,8 @@ class Cartograph:
         pass
 
     def draw_input_text(self, object=None):
-        self.ctgTextInput = CtgTextInput()
-        self.ctgTextInput.draw(object)
+        self.ctgTextInput = CtgTextInput(object)
+        self.ctgTextInput.draw()
 
     def highlight_object(self, hover=True):
         obj = self.hovered_obj if hover else self.selected_obj
