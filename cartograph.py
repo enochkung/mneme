@@ -201,8 +201,8 @@ class Cartograph:
                 return script
         return
 
-    def select_obj(self, pos):
-        self.selected_obj = self.get_object_from_mouse_pos(pos)
+    def select_obj(self, pos, screen_pos=False):
+        self.selected_obj = self.get_object_from_mouse_pos(pos, screen_pos=screen_pos)
         if self.selected_obj is not None:
             self.selected_obj.relative_pos = np.array(center_screen_conversion(pos)) - np.array(
                 self.selected_obj.center)
@@ -226,6 +226,14 @@ class Cartograph:
 
     def reset_connections(self):
         pass
+
+    def reset_selected_obj(self):
+        self.unhighlight_object(hover=False)
+        self.selected_obj = None
+
+    def reset_hovered_obj(self):
+        self.unhighlight_object(hover=True)
+        self.hovered_obj = None
 
     def get_connection_by_filter(self, filter):
         pass
