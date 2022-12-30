@@ -14,3 +14,20 @@ class ColourConstants:
     THIRD_DIR_LEVELL = MOSS_GREEN
 
     COLOUR_LIST = [FIRST_DIR_LEVEL, SECOND_DIR_LEVEL, THIRD_DIR_LEVELL]
+
+
+class DimensionConstants:
+    WIN_WIDTH = 1500
+    WIN_HEIGHT = 900
+    WIDTH = 1500
+    HEIGHT = 900
+    SQUAREUNIT = 100
+    MARGIN = 10
+    ConnectionWidth = 2
+    ScriptWidth = 2
+    ScriptHighlightWidth = 5
+    ConnectionHighlightWidth = 5
+
+
+class MouseConstants:
+    DOUBLE_CLICK_TIME = 50

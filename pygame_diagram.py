@@ -2,7 +2,7 @@ import numpy as np
 import pygame
 
 from cartograph import Cartograph
-from gameConstants import ColourConstants
+from gameConstants import ColourConstants, DimensionConstants, MouseConstants
 from mneme import Mneme
 import os
 
@@ -12,14 +12,37 @@ from utils import center_screen_conversion
 class PyGameDisplay:
     def __init__(self):
         self.mneme = None
-        self.scr = None
+        self.main_scr = None
+        self.surface = None
+        self.aux_menus = None
         self.ctg = None
+        self.clock = pygame.time.Clock()
+        self.mouse_up = True
 
     def run_main(self):
         self.setup_mneme()
         self.setup_pygame()
         self.setup_cartograph()
         self.run_loop()
+
+    def run_loop(self):
+        done = False
+        while not done:
+            for event in pygame.event.get():
+                self.check_reset(event)
+                done = self.check_quit(event)
+                if done:
+                    break
+                self.check_mouse(event)
+
+                # self.check_motion(event)
+                # self.check_aux_menus(event)
+
+                # self.check_highlight()
+
+            pygame.display.update()
+        # Update diagram
+        pygame.display.flip()
 
     def setup_mneme(self):
         root_dir = os.getcwd() + '\\' + 'test_folder'
@@ -29,28 +52,19 @@ class PyGameDisplay:
 
     def setup_pygame(self):
         pygame.init()
-        self.scr = pygame.display.set_mode((1500, 900))
-        self.scr.fill(ColourConstants.BACKGROUND)
+        self.main_scr = pygame.display.set_mode((DimensionConstants.WIN_WIDTH, DimensionConstants.WIN_HEIGHT),
+                                                pygame.RESIZABLE)
+        self.main_scr.fill(ColourConstants.BACKGROUND)
         pygame.display.set_caption('MnemeV1')
 
     def setup_cartograph(self):
-        self.ctg = Cartograph(self.scr, self.mneme)
+        self.ctg = Cartograph(self.main_scr, self.mneme)
         self.ctg.initialise_display_objects(self.mneme.scripts)
 
-    def run_loop(self):
-        done = False
-        while not done:
-            for event in pygame.event.get():
-                done = self.check_quit(event)
-                if done:
-                    break
-                self.check_mouse_down(event)
-                self.check_mouse_motion(event)
-                self.check_mouse_up(event)
-                self.check_reset(event)
-            pygame.display.update()
-        # Update diagram
-        pygame.display.flip()
+    def check_reset(self, event):
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+            self.main_scr.fill(ColourConstants.BACKGROUND)
+            self.ctg.reset()
 
     @staticmethod
     def check_quit(event):
@@ -58,29 +72,80 @@ class PyGameDisplay:
             return True
         return False
 
-    def check_mouse_down(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            pos = pygame.mouse.get_pos()
-            self.ctg.select_obj(pos)
+    def check_mouse(self, event):
+        self.check_mouse_hover()
+        if self.ctg.selected_obj is not None:
+            self.check_mouse_selected(event)
+        else:
+            self.check_mouse_unselected(event)
+        self.check_open_script(event)
 
-    def check_mouse_motion(self, event):
+    def check_mouse_selected(self, event):
+        """
+        1. if click outside of selected, then selected becomes whatever is clicked
+        2. if click inside of selected and drag mouse, then selected is drag and ends still selected
+        3. otherwise, de-select
+        :param event:
+        :return:
+        """
+        pos = pygame.mouse.get_pos()
+        obj = self.ctg.get_object_from_mouse_pos(pos, screen_pos=True)
+
+        if event.type == pygame.MOUSEBUTTONDOWN and self.clock.tick() > 500:
+            """
+            1. If obj is the same or obj is None, then unhighlight and reset selected obj
+            2. If obj is different, then unhighlight, change selected obj and highlight
+            """
+            self.mouse_up = False
+            if obj == self.ctg.selected_obj or obj is None:
+                self.ctg.reset_selected_obj()
+                return
+            if obj != self.ctg.selected_obj:
+                self.ctg.reset_selected_obj()
+                self.ctg.select_obj(pos=pos, screen_pos=True)
+                self.ctg.highlight_object(hover=False)
+        if event.type == pygame.MOUSEMOTION and not self.mouse_up:
+            self.move_obj(event)
+        if event.type == pygame.MOUSEBUTTONUP:
+            self.mouse_up = True
+
+    def check_mouse_unselected(self, event):
+        pos = pygame.mouse.get_pos()
+        obj = self.ctg.get_object_from_mouse_pos(pos, screen_pos=True)
+        if event.type == pygame.MOUSEBUTTONDOWN and self.clock.tick() > MouseConstants.DOUBLE_CLICK_TIME:
+            """
+            Nothing else is selected, so we highlight and set to selected_obj
+            """
+            if obj is not None:
+                self.ctg.select_obj(pos, screen_pos=True)
+                print('selected obj: ', self.ctg.selected_obj)
+                self.ctg.highlight_object(hover=False)
+
+    def check_mouse_hover(self):
+        pos = pygame.mouse.get_pos()
+        obj = self.ctg.get_object_from_mouse_pos(pos, screen_pos=True)
+        if obj is not None:
+            self.ctg.hover_obj(pos=pos, screen_pos=True)
+            self.ctg.highlight_object(hover=True)
+        if obj is None and self.ctg.hovered_obj is not None and self.ctg.hovered_obj != self.ctg.selected_obj:
+            self.ctg.unhighlight_object(hover=True)
+            self.ctg.reset_hovered_obj()
+
+    def check_open_script(self, event):
+        pos = pygame.mouse.get_pos()
+        obj = self.ctg.get_object_from_mouse_pos(pos, screen_pos=True)
+        if event.type == pygame.MOUSEBUTTONDOWN and self.clock.tick() < MouseConstants.DOUBLE_CLICK_TIME and obj is not None:
+            self.ctg.draw_input_text(object=obj)
+
+    def move_obj(self, event):
         if event.type == pygame.MOUSEMOTION and self.ctg.selected_obj is not None:
             pos = pygame.mouse.get_pos()
             self.ctg.selected_obj.set_center(
                 np.array(center_screen_conversion(pos)) - np.array(self.ctg.selected_obj.relative_pos)
             )
-            self.scr.fill(ColourConstants.BACKGROUND)
+            self.main_scr.fill(ColourConstants.BACKGROUND)
             self.ctg.set_grid()
             self.ctg.display_objects()
-
-    def check_mouse_up(self, event):
-        if event.type == pygame.MOUSEBUTTONUP:
-            self.ctg.selected_obj = None
-
-    def check_reset(self, event):
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
-            self.scr.fill(ColourConstants.BACKGROUND)
-            self.ctg.reset()
 
 
 if __name__ == '__main__':

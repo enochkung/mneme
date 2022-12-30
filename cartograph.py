@@ -1,11 +1,17 @@
+from tkinter import TOP
+from tkinter.filedialog import askopenfilename, asksaveasfile, asksaveasfilename
 from typing import List, Dict, Tuple
 
 import numpy as np
 import pygame
 
-from gameConstants import ColourConstants
+from gameConstants import ColourConstants, DimensionConstants
+from main import FileMenu
 from mneme import MneScript
 from utils import center_screen_conversion
+
+import tkinter as tk
+from tkinter.scrolledtext import ScrolledText
 
 
 class CtgScript:
@@ -21,14 +27,15 @@ class CtgScript:
         self.shape = dim
         self.colour = colour
         self.border_colour = ColourConstants.WHITE
+        self.width = DimensionConstants.ScriptWidth
         self.set_center(center)
 
     def get_pos_from_center(self) -> np.array:
         return np.array([self.center[0] - self.shape[0] / 2, self.center[1] + self.shape[1] / 2])
 
     def draw(self, session):
-        pygame.draw.rect(session, self.colour, self.rect, 0)
-        pygame.draw.rect(session, self.border_colour, self.rect, 1)
+        pygame.draw.rect(session, self.colour, self.rect, 0, border_radius=2)
+        pygame.draw.rect(session, self.border_colour, self.rect, width=self.width, border_radius=2)
 
     def set_center(self, center, screen_pos=False):
         self.center = center
@@ -38,8 +45,15 @@ class CtgScript:
         self.rect = pygame.Rect(self.screen_pos[0], self.screen_pos[1], self.shape[0], self.shape[1])
 
     def in_pos(self, pos):
-        return (pos[0] >= self.center[0] - self.shape[0]/2) and (pos[0] <= self.center[0] + self.shape[0]/2) and \
-               (pos[1] >= self.center[1] - self.shape[1]/2) and (pos[1] <= self.center[1] + self.shape[1]/2)
+        return self.rect.collidepoint(pos)
+        # return (pos[0] >= self.center[0] - self.shape[0] / 2) and (pos[0] <= self.center[0] + self.shape[0] / 2) and \
+        #        (pos[1] >= self.center[1] - self.shape[1] / 2) and (pos[1] <= self.center[1] + self.shape[1] / 2)
+
+    def highlight(self):
+        self.width = DimensionConstants.ScriptHighlightWidth
+
+    def is_highlighted(self):
+        return self.width == DimensionConstants.ScriptHighlightWidth
 
 
 class CtgConnection:
@@ -47,6 +61,7 @@ class CtgConnection:
         self.source_object = sourceScript
         self.target_object = targetScript
         self.colour = ColourConstants.WHITE
+        self.width = DimensionConstants.ConnectionWidth
 
     def draw(self, session, segments=None):
         source_loc = self.source_object.screen_center
@@ -57,11 +72,73 @@ class CtgConnection:
             segments = 2
 
         if segments == 1:
-            pygame.draw.line(session, self.colour, source_loc, target_loc)
+            pygame.draw.line(session, self.colour, source_loc, target_loc, width=self.width)
             return
         if segments == 2:
-            pygame.draw.line(session, self.colour, source_loc, (source_loc[0], target_loc[1]))
-            pygame.draw.line(session, self.colour, (source_loc[0], target_loc[1]), target_loc)
+            pygame.draw.line(session, self.colour, source_loc, (source_loc[0], target_loc[1]), width=self.width)
+            pygame.draw.line(session, self.colour, (source_loc[0], target_loc[1]), target_loc, width=self.width)
+
+    def is_highlighted(self):
+        return self.width == DimensionConstants.ConnectionHighlightWidth
+
+
+class CtgTextInput:
+    def __init__(self, obj):
+        self.obj = obj
+        self.shape = (int(DimensionConstants.WIDTH/2), int(DimensionConstants.HEIGHT/2))
+        self.input_rect = None
+        self.active = False
+        self.base_font = None
+        self.user_text = 'testing'
+        self.tkCompiler = tk.Tk()
+        self.menu_bar = tk.Menu(self.tkCompiler, tearoff=False)
+        self.editor = None
+
+    def read_script(self, script):
+        self.editor = ScrolledText(self.tkCompiler, bg='white', width=self.shape[0], height=self.shape[1])
+        self.editor.pack(padx=DimensionConstants.MARGIN, pady=DimensionConstants.MARGIN)
+        self.menu_bar.add_command(label='Save', command=self.save)
+        self.menu_bar.add_command(label='Save As', command=self.save_as)
+        self.tkCompiler.config(menu=self.menu_bar)
+
+        path = script.mneScript.script_name
+        with open(path, 'r') as file:
+            code = file.read()
+            self.editor.delete('1.0', tk.constants.END)
+            self.editor.insert('1.0', code)
+        self.tkCompiler.mainloop()
+
+    def save(self):
+        if self.obj.mneScript.script_name == '':
+            self.save_as()
+            return
+        print(self.obj.mneScript.script_name)
+        self.save_as(self.obj.mneScript.script_name)
+
+    def save_as(self, path=None):
+        path = asksaveasfilename(filetypes=[('Python Files', '*.py')]) if path is None else path
+        with open(path, 'w') as file:
+            code = self.editor.get('1.0', tk.END)
+            file.write(code)
+            self.set_file_path(path)
+
+    def set_file_path(self, path):
+        self.editor.file_path = path
+
+    def print_script(self):
+        pass
+
+    def create_empty_console(self):
+        pass
+
+    def draw(self):
+        object = self.obj
+        if object is None:
+            self.editor = ScrolledText(self.tkCompiler, bg='white', width=self.shape[0], height=self.shape[1])
+            self.editor.pack(padx=DimensionConstants.MARGIN, pady=DimensionConstants.MARGIN)
+            self.tkCompiler.mainloop()
+            return
+        self.read_script(object)
 
 
 class Cartograph:
@@ -71,14 +148,18 @@ class Cartograph:
         self.mneme = mneme
         self.mne_objects = list()
         self.selected_obj = None
+        self.hovered_obj = None
         self.ctgScripts: Dict[str, CtgScript] = dict()
         self.ctgConnections: List[CtgConnection] = list()
+        self.ctgTextInput: CtgTextInput = None
         self.opt_pos: Dict[str, Tuple[float, float]] = dict()
 
     def set_grid(self):
         for i in range(16):
-            pygame.draw.line(self.session, ColourConstants.GREY, (i * 100, 0), (i * 100, 1000))
-            pygame.draw.line(self.session, ColourConstants.GREY, (0, i * 100), (1500, i * 100))
+            pygame.draw.line(self.session, ColourConstants.GREY, (i * DimensionConstants.SQUAREUNIT, 0),
+                             (i * DimensionConstants.SQUAREUNIT, DimensionConstants.HEIGHT))
+            pygame.draw.line(self.session, ColourConstants.GREY, (0, i * DimensionConstants.SQUAREUNIT),
+                             (DimensionConstants.WIDTH, i * DimensionConstants.SQUAREUNIT))
 
     def initialise_display_objects(self, mneObjects: List[MneScript]) -> None:
         """
@@ -128,27 +209,35 @@ class Cartograph:
         levels.sort()
 
         divisions = len(set(levels)) + 1
-        coord_vert_increment = 900 / divisions
+        coord_vert_increment = DimensionConstants.HEIGHT / divisions
         for level_num, level in enumerate(set(levels)):
             scripts_at_level = [mneScript for mneScript in self.mne_objects if mneScript.level == level]
             horizontal_divisions = len(scripts_at_level) + 1
-            coord_hor_increment = 1500 / horizontal_divisions
+            coord_hor_increment = DimensionConstants.WIDTH / horizontal_divisions
             for script_num, mneScript in enumerate(scripts_at_level):
                 self.opt_pos[mneScript.script_name] = (
-                    coord_hor_increment * (script_num + 1), 900 -coord_vert_increment * (level_num + 1)
+                    coord_hor_increment * (script_num + 1),
+                    DimensionConstants.HEIGHT - coord_vert_increment * (level_num + 1)
                 )
 
-    def get_object_from_mouse_pos(self, pos):
-        ctg_pos = center_screen_conversion(pos)
+    def get_object_from_mouse_pos(self, pos, screen_pos=False):
+        ctg_pos = center_screen_conversion(pos) if not screen_pos else pos
         for script in self.ctgScripts.values():
             if script.in_pos(ctg_pos):
                 return script
         return
 
-    def select_obj(self, pos):
-        self.selected_obj = self.get_object_from_mouse_pos(pos)
+    def select_obj(self, pos, screen_pos=False):
+        self.selected_obj = self.get_object_from_mouse_pos(pos, screen_pos=screen_pos)
         if self.selected_obj is not None:
-            self.selected_obj.relative_pos = np.array(center_screen_conversion(pos)) - np.array(self.selected_obj.center)
+            self.selected_obj.relative_pos = np.array(center_screen_conversion(pos)) - np.array(
+                self.selected_obj.center)
+
+    def hover_obj(self, pos=None, screen_pos=False):
+        self.hovered_obj = self.get_object_from_mouse_pos(pos, screen_pos=screen_pos)
+        if self.hovered_obj is not None:
+            self.hovered_obj.relative_pos = np.array(center_screen_conversion(pos)) - np.array(
+                self.hovered_obj.center)
 
     def reset(self):
         self.set_grid()
@@ -164,8 +253,38 @@ class Cartograph:
     def reset_connections(self):
         pass
 
+    def reset_selected_obj(self):
+        self.unhighlight_object(hover=False)
+        self.selected_obj = None
+
+    def reset_hovered_obj(self):
+        self.unhighlight_object(hover=True)
+        self.hovered_obj = None
+
     def get_connection_by_filter(self, filter):
         pass
 
     def get_inputs_for_pygame(self):
         pass
+
+    def draw_input_text(self, object=None):
+        self.ctgTextInput = CtgTextInput(object)
+        self.ctgTextInput.draw()
+
+    def highlight_object(self, hover=True):
+        obj = self.hovered_obj if hover else self.selected_obj
+        obj.width = DimensionConstants.ScriptHighlightWidth if isinstance(obj, CtgScript) \
+            else DimensionConstants.ConnectionHighlightWidth
+        if isinstance(obj, CtgScript):
+            self.draw_script(obj)
+        elif isinstance(obj, CtgConnection):
+            self.draw_connection(obj)
+
+    def unhighlight_object(self, hover=True):
+        obj = self.hovered_obj if hover else self.selected_obj
+        obj.width = DimensionConstants.ScriptWidth if isinstance(obj, CtgScript) \
+            else DimensionConstants.ConnectionWidth
+        if isinstance(obj, CtgScript):
+            self.draw_script(obj)
+        elif isinstance(obj, CtgConnection):
+            self.draw_connection(obj)

@@ -99,9 +99,9 @@ class Mneme:
         for line in lines:
             if 'from' in line and 'import' in line:
                 imports_component = line.replace('\n', '').replace('from ', '').split(' import ')
+                cleanup_address = self.cleanup_address(self.root_dir + '\\' + imports_component[0].replace('.', '\\') + '.py')
                 imports_list.append(
-                    MneImport(self.root_dir + '\\' + imports_component[0].replace('.', '\\') + '.py',
-                              imports_component[1].split(', '), pyscript)
+                    MneImport(cleanup_address, imports_component[1].split(', '), pyscript)
                 )
             if 'class' in line:
                 classes_list.append(MneClass(line.replace(':\n', '').split(' ')[1], pyscript))
@@ -109,3 +109,6 @@ class Mneme:
                 funcs_list.append(MneFunc(line.replace(':', '').split(' ')[1].split('(')[0], pyscript))
 
         return imports_list, classes_list, funcs_list
+
+    def cleanup_address(self, dir_address):
+        return dir_address.replace('\\\\', '\\')
