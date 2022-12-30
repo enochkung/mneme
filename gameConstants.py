@@ -27,3 +27,7 @@ class DimensionConstants:
     ScriptWidth = 2
     ScriptHighlightWidth = 5
     ConnectionHighlightWidth = 5
+
+
+class MouseConstants:
+    DOUBLE_CLICK_TIME = 50

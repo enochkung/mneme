@@ -2,7 +2,7 @@ import numpy as np
 import pygame
 
 from cartograph import Cartograph
-from gameConstants import ColourConstants, DimensionConstants
+from gameConstants import ColourConstants, DimensionConstants, MouseConstants
 from mneme import Mneme
 import os
 
@@ -76,8 +76,9 @@ class PyGameDisplay:
         self.check_mouse_hover()
         if self.ctg.selected_obj is not None:
             self.check_mouse_selected(event)
-            return
-        self.check_mouse_unselected(event)
+        else:
+            self.check_mouse_unselected(event)
+        self.check_open_script(event)
 
     def check_mouse_selected(self, event):
         """
@@ -111,7 +112,7 @@ class PyGameDisplay:
     def check_mouse_unselected(self, event):
         pos = pygame.mouse.get_pos()
         obj = self.ctg.get_object_from_mouse_pos(pos, screen_pos=True)
-        if event.type == pygame.MOUSEBUTTONDOWN and self.clock.tick() > 500:
+        if event.type == pygame.MOUSEBUTTONDOWN and self.clock.tick() > MouseConstants.DOUBLE_CLICK_TIME:
             """
             Nothing else is selected, so we highlight and set to selected_obj
             """
@@ -130,21 +131,11 @@ class PyGameDisplay:
             self.ctg.unhighlight_object(hover=True)
             self.ctg.reset_hovered_obj()
 
-    def check_motion(self, event):
-        self.check_mouse_down(event)
-        self.check_mouse_motion(event)
-        self.check_mouse_up(event)
-
-    def check_mouse_down(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if self.clock.tick() > 500:
-                pos = pygame.mouse.get_pos()
-                self.ctg.select_obj(pos)
-            else:
-                pos = pygame.mouse.get_pos()
-                self.ctg.select_obj(pos)
-                if self.ctg.selected_obj is not None and self.ctg.selected_obj.in_pos(center_screen_conversion(pos)):
-                    self.ctg.draw_input_text(object=self.ctg.selected_obj)
+    def check_open_script(self, event):
+        pos = pygame.mouse.get_pos()
+        obj = self.ctg.get_object_from_mouse_pos(pos, screen_pos=True)
+        if event.type == pygame.MOUSEBUTTONDOWN and self.clock.tick() < MouseConstants.DOUBLE_CLICK_TIME and obj is not None:
+            self.ctg.draw_input_text(object=obj)
 
     def move_obj(self, event):
         if event.type == pygame.MOUSEMOTION and self.ctg.selected_obj is not None:
@@ -155,26 +146,6 @@ class PyGameDisplay:
             self.main_scr.fill(ColourConstants.BACKGROUND)
             self.ctg.set_grid()
             self.ctg.display_objects()
-
-    def check_mouse_up(self, event):
-        if event.type == pygame.MOUSEBUTTONUP:
-            if self.ctg.selected_obj is not None:
-                self.ctg.reset_selected_obj()
-
-    def check_highlight(self):
-        pos = pygame.mouse.get_pos()
-        if self.ctg.selected_obj is not None and not self.ctg.selected_obj.in_pos(center_screen_conversion(pos)):
-            self.ctg.unhighlight_object()
-            self.ctg.reset_selected_obj()
-
-        self.ctg.select_obj(pos)
-        if self.ctg.selected_obj is not None:
-            self.ctg.highlight_object(hover=False)
-            self.ctg.reset_selected_obj()
-
-    def check_aux_menus(self, event):
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_h and not self.ctg.inputTextPressed:
-            self.ctg.draw_input_text()
 
 
 if __name__ == '__main__':
