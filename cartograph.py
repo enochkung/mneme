@@ -91,6 +91,7 @@ class CtgTextInput:
         self.base_font = None
         self.user_text = 'testing'
         self.tkCompiler = tk.Tk()
+        self.tkCompiler.geometry(f'{self.shape[0]}x{self.shape[1]}')
         self.menu_bar = tk.Menu(self.tkCompiler, tearoff=False)
         self.editor = None
 
@@ -109,10 +110,9 @@ class CtgTextInput:
         self.tkCompiler.mainloop()
 
     def save(self):
-        if self.obj.mneScript.script_name == '':
+        if self.obj is None:
             self.save_as()
             return
-        print(self.obj.mneScript.script_name)
         self.save_as(self.obj.mneScript.script_name)
 
     def save_as(self, path=None):
@@ -136,7 +136,11 @@ class CtgTextInput:
         if object is None:
             self.editor = ScrolledText(self.tkCompiler, bg='white', width=self.shape[0], height=self.shape[1])
             self.editor.pack(padx=DimensionConstants.MARGIN, pady=DimensionConstants.MARGIN)
+            self.menu_bar.add_command(label='Save', command=self.save)
+            self.menu_bar.add_command(label='Save As', command=self.save_as)
+            self.tkCompiler.config(menu=self.menu_bar)
             self.tkCompiler.mainloop()
+
             return
         self.read_script(object)
 
@@ -172,7 +176,11 @@ class Cartograph:
         self.optimise_pos()
         self.initialise_scripts()
         self.initialise_connections()
+        self.initialise_util_buttons()
         self.display_objects()
+
+    def initialise_util_buttons(self):
+        pass
 
     def initialise_scripts(self):
         for scriptNum, mneScript in enumerate(self.mne_objects):
@@ -268,6 +276,9 @@ class Cartograph:
         pass
 
     def draw_input_text(self, object=None):
+        object = self.selected_obj if object is None else object
+        if object is None:
+            return
         self.ctgTextInput = CtgTextInput(object)
         self.ctgTextInput.draw()
 
@@ -281,6 +292,8 @@ class Cartograph:
             self.draw_connection(obj)
 
     def unhighlight_object(self, hover=True):
+        if self.hovered_obj == self.selected_obj and hover:
+            return
         obj = self.hovered_obj if hover else self.selected_obj
         obj.width = DimensionConstants.ScriptWidth if isinstance(obj, CtgScript) \
             else DimensionConstants.ConnectionWidth
@@ -288,3 +301,7 @@ class Cartograph:
             self.draw_script(obj)
         elif isinstance(obj, CtgConnection):
             self.draw_connection(obj)
+
+    def refresh_ctg(self):
+        self.initialise_scripts()
+        self.initialise_connections()
