@@ -1,6 +1,6 @@
 from tkinter import TOP
 from tkinter.filedialog import askopenfilename, asksaveasfile, asksaveasfilename
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union
 
 import numpy as np
 import pygame
@@ -91,8 +91,10 @@ class CtgTextInput:
         self.base_font = None
         self.user_text = 'testing'
         self.tkCompiler = tk.Tk()
+        self.tkCompiler.geometry(f'{self.shape[0]}x{self.shape[1]}')
         self.menu_bar = tk.Menu(self.tkCompiler, tearoff=False)
         self.editor = None
+        self.save_new_script = False
 
     def read_script(self, script):
         self.editor = ScrolledText(self.tkCompiler, bg='white', width=self.shape[0], height=self.shape[1])
@@ -109,10 +111,9 @@ class CtgTextInput:
         self.tkCompiler.mainloop()
 
     def save(self):
-        if self.obj.mneScript.script_name == '':
+        if self.obj is None:
             self.save_as()
             return
-        print(self.obj.mneScript.script_name)
         self.save_as(self.obj.mneScript.script_name)
 
     def save_as(self, path=None):
@@ -121,6 +122,9 @@ class CtgTextInput:
             code = self.editor.get('1.0', tk.END)
             file.write(code)
             self.set_file_path(path)
+
+        if self.obj is None:
+            self.save_new_script = True
 
     def set_file_path(self, path):
         self.editor.file_path = path
@@ -136,9 +140,51 @@ class CtgTextInput:
         if object is None:
             self.editor = ScrolledText(self.tkCompiler, bg='white', width=self.shape[0], height=self.shape[1])
             self.editor.pack(padx=DimensionConstants.MARGIN, pady=DimensionConstants.MARGIN)
+            self.menu_bar.add_command(label='Save', command=self.save)
+            self.menu_bar.add_command(label='Save As', command=self.save_as)
+            self.tkCompiler.config(menu=self.menu_bar)
             self.tkCompiler.mainloop()
+
             return
         self.read_script(object)
+
+
+class CtgPotentialScript:
+    center = None
+    screen_center = None
+    pos = None
+    screen_pos = None
+    rect = None
+    relative_pos = None
+
+    def __init__(self, center=np.array((0, 0)), dim=np.array((100, 100)), colour=ColourConstants.D_CYAN):
+        self.colour = colour
+        self.shape = dim
+        self.center = center
+        self.border_colour = ColourConstants.WHITE
+        self.width = DimensionConstants.ScriptWidth
+        self.set_center(center)
+
+    def draw(self, session):
+        pygame.draw.rect(session, self.colour, self.rect, 0, border_radius=2)
+        pygame.draw.rect(session, self.border_colour, self.rect, width=self.width, border_radius=2)
+
+    def set_center(self, center, screen_pos=False):
+        self.center = center
+        self.screen_center = center_screen_conversion(self.center)
+        self.pos = self.get_pos_from_center()
+        self.screen_pos = self.pos if screen_pos else center_screen_conversion(self.pos)
+        self.rect = pygame.Rect(self.screen_pos[0], self.screen_pos[1], self.shape[0], self.shape[1])
+
+    def get_pos_from_center(self) -> np.array:
+        return np.array([self.center[0] - self.shape[0] / 2, self.center[1] + self.shape[1] / 2])
+
+    def convert_to_ctgScript(self, text_input: CtgTextInput) -> CtgScript:
+        mne_script = MneScript(script_name=text_input.editor.file_path,
+                               imports=set(),
+                               classes=set(),
+                               functions=set())
+        return CtgScript(mne_script, center=self.center)
 
 
 class Cartograph:
@@ -149,8 +195,10 @@ class Cartograph:
         self.mne_objects = list()
         self.selected_obj = None
         self.hovered_obj = None
+        self.potential_obj = None
         self.ctgScripts: Dict[str, CtgScript] = dict()
         self.ctgConnections: List[CtgConnection] = list()
+        self.ctgPotentialScripts: List[CtgPotentialScript] = list()
         self.ctgTextInput: CtgTextInput = None
         self.opt_pos: Dict[str, Tuple[float, float]] = dict()
 
@@ -172,7 +220,11 @@ class Cartograph:
         self.optimise_pos()
         self.initialise_scripts()
         self.initialise_connections()
+        self.initialise_util_buttons()
         self.display_objects()
+
+    def initialise_util_buttons(self):
+        pass
 
     def initialise_scripts(self):
         for scriptNum, mneScript in enumerate(self.mne_objects):
@@ -198,7 +250,10 @@ class Cartograph:
         for script in self.ctgScripts.values():
             self.draw_script(script)
 
-    def draw_script(self, script: CtgScript):
+        for script in self.ctgPotentialScripts:
+            self.draw_script(script)
+
+    def draw_script(self, script: Union[CtgScript, CtgPotentialScript]):
         script.draw(self.session)
 
     def draw_connection(self, connection):
@@ -270,6 +325,14 @@ class Cartograph:
     def draw_input_text(self, object=None):
         self.ctgTextInput = CtgTextInput(object)
         self.ctgTextInput.draw()
+        if self.ctgTextInput.save_new_script:
+            new_ctgScript = self.potential_obj.convert_to_ctgScript(self.ctgTextInput)
+            self.ctgScripts[new_ctgScript.mneScript.script_name] = new_ctgScript
+        self.ctgPotentialScripts = list()
+        self.potential_obj = None
+
+    def create_new_script(self):
+        self.draw_input_text()
 
     def highlight_object(self, hover=True):
         obj = self.hovered_obj if hover else self.selected_obj
@@ -281,6 +344,8 @@ class Cartograph:
             self.draw_connection(obj)
 
     def unhighlight_object(self, hover=True):
+        if self.hovered_obj == self.selected_obj and hover:
+            return
         obj = self.hovered_obj if hover else self.selected_obj
         obj.width = DimensionConstants.ScriptWidth if isinstance(obj, CtgScript) \
             else DimensionConstants.ConnectionWidth
@@ -288,3 +353,15 @@ class Cartograph:
             self.draw_script(obj)
         elif isinstance(obj, CtgConnection):
             self.draw_connection(obj)
+
+    def refresh_ctg(self):
+        self.initialise_scripts()
+        self.initialise_connections()
+
+    def create_potential_script(self):
+        pos = pygame.mouse.get_pos()
+        self.potential_obj = CtgPotentialScript(center=center_screen_conversion(pos), colour=ColourConstants.SAFFRON)
+        self.ctgPotentialScripts.append(self.potential_obj)
+        self.potential_obj.draw(self.session)
+        self.potential_obj.relative_pos = np.array(center_screen_conversion(pos)) - np.array(
+            self.potential_obj.center)
