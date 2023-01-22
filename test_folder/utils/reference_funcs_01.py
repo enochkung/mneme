@@ -1,4 +1,5 @@
-from .secondary_script.second_code import secondary_function
+from test_folder.secondary_script.second_code import second_function
+
 
 def test_func():
-    return secondary_function(1, 2)
+    return second_function(1, 2)

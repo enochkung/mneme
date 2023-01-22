@@ -28,3 +28,7 @@ def isKey(event) -> bool:
 def isMouse(event) -> bool:
     return event.type == pygame.MOUSEBUTTONUP or \
            event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.MOUSEMOTION
+
+
+def getMousePos():
+    return pygame.mouse.get_pos()

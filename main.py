@@ -138,4 +138,4 @@ class CodeVizOutput:
 
 if __name__ == '__main__':
     # CodeViz()
-    main()
+    main(devMode=True)
