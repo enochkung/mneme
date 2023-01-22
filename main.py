@@ -4,6 +4,7 @@ import subprocess
 from tkinter.scrolledtext import ScrolledText
 
 # from crius import Crius
+from mainV2 import main
 
 
 class CodeViz:
@@ -136,4 +137,5 @@ class CodeVizOutput:
 
 
 if __name__ == '__main__':
-    CodeViz()
+    # CodeViz()
+    main(devMode=True)
