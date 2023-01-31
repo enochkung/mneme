@@ -16,6 +16,7 @@ class DisplayBlock:
     colour: ColourConstants = None
     border_colour: ColourConstants = ColourConstants.WHITE
     width: DimensionConstants = DimensionConstants.ScriptWidth
+    level: int = None
 
     def createPygameObj(self):
         pass

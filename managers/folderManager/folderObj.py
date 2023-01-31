@@ -12,6 +12,7 @@ class ScriptObj:
     folder: uuid = None
     name: str = None
     extension: str = None
+    level: int = None
 
     def __init__(self):
         self.id = uuid.uuid4()

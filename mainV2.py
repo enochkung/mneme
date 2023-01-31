@@ -28,9 +28,13 @@ class Mneme:
     def setupManagers(self):
         self.folderManager = FolderManager()
         self.connectionManager = ConnectionManager(self.folderManager)
+        for connection in self.connectionManager.connectionDict.values():
+            for script in [connection.sourceScriptID, connection.targetScriptID]:
+                assert script in self.folderManager.scriptDict, f"Where did this script {script} come from?"
+
         self.displayManager = DisplayManager(
             self.connectionManager.connectionDict,
-            self.folderManager.fileDict
+            self.folderManager.scriptDict
         )
         self.inputManager = InputManager(self.displayManager)
 
