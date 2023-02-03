@@ -18,11 +18,8 @@ class Cartographer:
 
     def autosetBlockAndConnections(
             self, blocksDict: Dict[str, DisplayBlock], connectionsDict: Dict[str, DisplayConnection]
-    ) -> None:
-        # self.getLevels(blocksDict)
-        # self.getScriptCoordinates()
-        # self.getConnectionDistances(connectionDict)
-        self.runOptimisation(blocksDict, connectionsDict)
+    ) -> Dict[str, Tuple[int, float]]:
+        return self.runOptimisation(blocksDict, connectionsDict)
 
     def getLevels(self, scriptsDict: Dict[str, DisplayBlock]) -> Dict[int, List[str]]:
         scriptPathLocLengths = {
@@ -36,27 +33,9 @@ class Cartographer:
 
         return self.scriptsByLevel
 
-    def getScriptCoordinates(self):
-        """
-        1. For N levels, divide screen vertically to N+1 sections
-        2. For M scripts per level, divide screen horizontally to M+1 sections
-
-        Then each script is given a coordinate for its centre
-        :return:
-        """
-        self.numLevels = len(self.scriptsByLevel)
-        self.numSpacesByLevel = {level: len(scriptsOnLevel) for level, scriptsOnLevel in self.scriptsByLevel.items()}
-        self.scriptCoordinates = [(level, space) for level, numSpaces in self.numSpacesByLevel.items()
-                                  for space in range(numSpaces)]
-
-    def getConnectionDistances(self, connectionDict: Dict[str, DisplayConnection]):
-        for connectionID, connection in connectionDict.items():
-            sourceBlock, targetBlock = connection.sourceBlock, connection.targetBlock
-            sourceLevel, targetLevel = sourceBlock.level, sourceBlock.level
-
-        pass
-
-    def runOptimisation(self, scriptsDict: Dict[str, DisplayBlock], connectionsDict: Dict[str, DisplayConnection]):
+    def runOptimisation(
+            self, scriptsDict: Dict[str, DisplayBlock], connectionsDict: Dict[str, DisplayConnection]
+    ) -> Dict[str, Tuple[int, float]]:
         """
         This problem is to minimise the distances of the connections that exist and secondarily files of the same folder
         are closer to each other.
@@ -66,17 +45,24 @@ class Cartographer:
         to the script a number in range(number of spaces in level).
         :return:
         """
+
+        def objFunc():
+            return sum(
+                np.abs(connection.sourceBlock.level - connection.targetBlock.level)
+                for connection in connectionsDict.values()
+            ) + sum(connection['upper'] + connection['lower'] for connection in connectionVar.values())
+
         solver = pywraplp.Solver.CreateSolver('SCIP')
 
         levelCoordinates, lateralCoordinates, spacesByLevel = self.getConstants(scriptsDict, connectionsDict)
+        self.numLevels = max(level for level in spacesByLevel)
         scriptVar, connectionVar = self.createVariables(solver, scriptsDict, connectionsDict, spacesByLevel)
-        self.setConstraints(solver, spacesByLevel, scriptVar, connectionVar)
-        solver.Minimize()
+        self.setConstraints(solver, spacesByLevel, scriptVar, connectionVar, connectionsDict)
+        solver.Minimize(objFunc())
 
         status = solver.Solve()
 
-        self.interpretSolution()
-        pass
+        return self.interpretSolution(scriptVar, spacesByLevel)
 
     def getConstants(self, scriptsDict: Dict[str, DisplayBlock], connectionDict: Dict[str, DisplayConnection]) -> \
             Tuple[Dict[Tuple[int, int], int], Dict[Tuple[int, int], np.array], Dict[int, int]]:
@@ -111,12 +97,14 @@ class Cartographer:
 
         return levelCoodinates, lateralCoordinates, spacesByLevel
 
+    @staticmethod
     def createVariables(
-            self, solver: pywraplp.Solver,
+            solver: pywraplp.Solver,
             scriptsDict: Dict[str, DisplayBlock],
             connectionDict: Dict[str, DisplayConnection],
             spacesByLevel: Dict[int, int]
-    ) -> Tuple[Dict[int, Dict[str, pywraplp.Solver.IntVar]], Dict[str, pywraplp.Solver.NumVar]]:
+    ) -> Tuple[Dict[int, Dict[str, Dict[int, pywraplp.Solver.BoolVar]]],
+               Dict[str, Dict[str, pywraplp.Solver.NumVar]]]:
         """
         Variables are
         X_s
@@ -140,7 +128,9 @@ class Cartographer:
         connectionVar = dict()
 
         for scriptIndex, (scriptID, scriptObj) in enumerate(scriptsDict.items()):
-            scriptVar.setdefault(scriptObj.level, dict())[scriptID] = solver.IntVar(1, spacesByLevel[scriptObj.level], f'X[{scriptIndex}]')
+            for space in range(spacesByLevel[scriptObj.level]):
+                scriptVar.setdefault(scriptObj.level, dict()).setdefault(scriptID, dict())[space + 1] = \
+                    solver.BoolVar(f'X[{scriptObj.level}, {scriptIndex}, {space+1}]')
 
         for connectionIndex, (connectionID, connectionObj) in enumerate(connectionDict.items()):
             connectionVar[connectionID] = {
@@ -150,11 +140,13 @@ class Cartographer:
 
         return scriptVar, connectionVar
 
+    @staticmethod
     def setConstraints(
-            self, solver: pywraplp.Solver,
+            solver: pywraplp.Solver,
             spacesByLevel: Dict[int, int],
-            scriptVar: Dict[int, Dict[str, pywraplp.Solver.IntVar]],
-            connectionVar: Dict[str, Dict[str, pywraplp.Solver.NumVar]]
+            scriptVar: Dict[int, Dict[str, Dict[int, pywraplp.Solver.BoolVar]]],
+            connectionVar: Dict[str, Dict[str, pywraplp.Solver.NumVar]],
+            connectionsDict: Dict[str, DisplayConnection],
     ):
         """
         Consider level L, which has spaces sigma(L).
@@ -168,20 +160,40 @@ class Cartographer:
         :param connectionVar:
         :return:
         """
-        for level, spaces in spacesByLevel.items():
-            varList = list(scriptVar[level].items())
-            levelRange = list(range(1, spaces + 1))
-            for varIndex in range(len(varList)):
-                firstVars = varList[:(varIndex + 1)]
-                if varIndex != len(varList) - 1:
-                    solver.Add(
-                        sum(levelRange[:(varIndex + 1)]) <= solver.Sum(firstVar[1] for firstVar in firstVars)
-                        <= sum(levelRange[(-varIndex - 1):])
-                    )
-                else:
-                    solver.Add(solver.Sum(firstVar[1] for firstVar in firstVars) == sum(levelRange[:]))
-
+        for level, scripts in scriptVar.items():
+            for scriptID, spaceVars in scripts.items():
+                solver.Add(solver.Sum(var for space, var in spaceVars.items()) == 1)
+            for space in range(spacesByLevel[level]):
+                solver.Add(solver.Sum(script[space + 1] for scriptID, script in scripts.items()) == 1)
 
         for connectionID, upperAndLowerConnectionVars in connectionVar.items():
+            connectionObj = connectionsDict[connectionID]
+            sourceScript, targetScript = connectionObj.sourceBlock, connectionObj.targetBlock
+            sourceScriptID, targetScriptID = sourceScript.id, targetScript.id
+            solver.Add(
+                upperAndLowerConnectionVars['upper'] - upperAndLowerConnectionVars['lower'] ==
+                solver.Sum(
+                    space/(spacesByLevel[sourceScript.level] + 1) * var
+                    for space, var in scriptVar[sourceScript.level][sourceScriptID].items()
+                ) - solver.Sum(
+                    space/(spacesByLevel[targetScript.level] + 1) * var
+                    for space, var in scriptVar[targetScript.level][targetScriptID].items()
+                )
+            )
 
-            solver.Add(upperAndLowerConnectionVars['upper'] - upperAndLowerConnectionVars['lower'] == )
+    @staticmethod
+    def interpretSolution(
+            scriptVar: Dict[int, Dict[str, Dict[int, pywraplp.Solver.BoolVar]]],
+            spacesByLevel: Dict[int, int],
+    ):
+        coordinateByScript = dict()
+
+        for level, scripts in scriptVar.items():
+            for scriptID, spaceVar in scripts.items():
+                coordinateByScript[scriptID] =\
+                    (level, sum(
+                        space * var.solution_value() / (spacesByLevel[level] + 1)
+                        for space, var in spaceVar.items()
+                    ))
+
+        return coordinateByScript

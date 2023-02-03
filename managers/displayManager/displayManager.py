@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 import pygame
 
@@ -11,12 +11,12 @@ from managers.folderManager.folderObj import ScriptObj
 
 
 class DisplayManager:
-    session = None
     mainScr = None
     Blocks: Dict[str, DisplayBlock] = dict()
     Connections: Dict[str, DisplayConnection] = dict()
     graph: DisplayNetwork = None
     cartographer: Cartographer = Cartographer()
+    blockCoords: Dict[str, Tuple[int, float]]
 
     def __init__(self, connectionDict: Dict[str, ConnectionObj], scriptDict: Dict[str, ScriptObj]):
         self.createDisplayObjs(connectionDict, scriptDict)
@@ -46,12 +46,12 @@ class DisplayManager:
             self.Connections[connectionID] = displayConnection
 
     def initialise(self):
-        self.drawObjects()
         pygame.init()
         self.mainScr = pygame.display.set_mode((DimensionConstants.WIN_WIDTH, DimensionConstants.WIN_HEIGHT),
                                                pygame.RESIZABLE)
         self.mainScr.fill(ColourConstants.BACKGROUND)
         pygame.display.set_caption('MnemeV2')
+        self.drawObjects()
 
     def drawGrid(self):
         for i in range(16):
@@ -65,7 +65,7 @@ class DisplayManager:
         self.drawConnections()
         self.drawBlocks()
 
-    def autosetObjLoc(self):
+    def autosetObjLoc(self) -> None:
         """
         Mneme has own setting for block locations. It will also allow user to drag and reposition
         but a reset will reposition blocks back to the Mneme preset method.
@@ -77,15 +77,21 @@ class DisplayManager:
         3. Connect blocks optimally
         :return:
         """
-        self.cartographer.autosetBlockAndConnections(self.Blocks, self.Connections)
+        self.blockCoords = self.cartographer.autosetBlockAndConnections(self.Blocks, self.Connections)
+        self.numLevels = self.cartographer.numLevels
+        self.updateBlockPos()
 
-    def drawBlocks(self):
+    def updateBlockPos(self):
+        for scriptID, pos in self.blockCoords.items():
+            self.Blocks[scriptID].updatePos(pos, self.numLevels)
+
+    def drawBlocks(self) -> None:
         for block in self.Blocks.values():
-            block.draw()
+            block.draw(self.mainScr)
 
-    def drawConnections(self):
+    def drawConnections(self) -> None:
         for connection in self.Connections.values():
-            connection.draw()
+            connection.draw(self.mainScr)
 
     @staticmethod
     def update():
