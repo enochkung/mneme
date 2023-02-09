@@ -27,7 +27,6 @@ class ConnectionManager:
                     else:
                         continue
                     isSource, sourceLocationName, sourceScriptName = self._checkSource(importSource)
-                    # print(isSource, sourceLocation, importSource)
                     if isSource:
                         sourceFolderObj = self.folderStructureDict[sourceLocationName]
                         sourceScriptObj = [scriptobj for scriptobj in sourceFolderObj.fileObjs

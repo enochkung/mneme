@@ -16,7 +16,7 @@ class Cartographer:
     numSpacesByLevel: Dict[int, int] = dict()
     scriptCoordinates: List[Tuple[int, int]] = list()
 
-    def autosetBlockAndConnections(
+    def autosetBlocks(
             self, blocksDict: Dict[str, DisplayBlock], connectionsDict: Dict[str, DisplayConnection]
     ) -> Dict[str, Tuple[int, float]]:
         return self.runOptimisation(blocksDict, connectionsDict)
@@ -55,7 +55,7 @@ class Cartographer:
         solver = pywraplp.Solver.CreateSolver('SCIP')
 
         levelCoordinates, lateralCoordinates, spacesByLevel = self.getConstants(scriptsDict, connectionsDict)
-        self.numLevels = max(level for level in spacesByLevel)
+        self.numLevels = max(level for level in spacesByLevel) + 1
         scriptVar, connectionVar = self.createVariables(solver, scriptsDict, connectionsDict, spacesByLevel)
         self.setConstraints(solver, spacesByLevel, scriptVar, connectionVar, connectionsDict)
         solver.Minimize(objFunc())
@@ -197,3 +197,48 @@ class Cartographer:
                     ))
 
         return coordinateByScript
+
+
+class Navigator:
+    def autosetConnections(self, blocksDict: Dict[str, DisplayBlock],
+                           connectionsDict: Dict[str, DisplayConnection]):
+        """
+        Optimise Connection lines to have minimum overlaps
+
+        Variables are
+        :param blocksDict:
+        :param connectionsDict:
+        :return:
+        """
+
+        # solver = pywraplp.Solver.CreateSolver('SCIP')
+        return self.naiveSolution(connectionsDict)
+
+    def naiveSolution(self, connectionsDict: Dict[str, DisplayConnection]) -> Dict[str, List[Tuple[float, float]]]:
+        connectionPos = dict()
+        for connectionID, connection in connectionsDict.items():
+            sourcePos = connection.sourceBlock.center
+            targetPos = connection.targetBlock.center
+            connectionPos[connectionID] = [sourcePos, (targetPos[0], sourcePos[1]), targetPos]
+
+        return connectionPos
+
+    def createVariables(self, solver: pywraplp.Solver,
+                        connectionsDict: Dict[str, DisplayConnection]) -> None:
+        """
+        Variables are
+            - for each connection, each connection has N vertices
+            - each has an X and Y coordinates per vertex
+        :param solver:
+        :return:
+        """
+        connectionvar = dict()
+        for connectionIndex, (connectionID, connection) in enumerate(connectionsDict.items()):
+            connectionvar.setdefault(connectionID, dict())[connection.sourceBlock.id] = [
+                solver.NumVar(connection.sourceBlock.center[1] - connection.sourceBlock.shape[1]/2,
+                              connection.sourceBlock.center[1] + connection.sourceBlock.shape[1]/2,
+                              f'C[S,{connectionIndex}]'),
+                solver.NumVar(connection.targetBlock.center[1] - connection.targetBlock.shape[1]/2,
+                              connection.targetBlock.center[1] + connection.targetBlock.shape[1]/2,
+                              f'C[T,{connectionIndex}]')
+            ]

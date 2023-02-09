@@ -1,5 +1,5 @@
 import uuid
-from typing import Tuple, Union, Dict, Any
+from typing import Tuple, Union, Dict, Any, List
 
 import networkx as nx
 import pygame
@@ -7,6 +7,7 @@ import pygame
 from gameConstants import ColourConstants, DimensionConstants
 from managers.connectionManager.connectionObj import ConnectionObj
 from managers.folderManager.folderObj import FolderObj, ScriptObj
+from utils import flipCoords
 
 
 class DisplayBlock:
@@ -19,6 +20,7 @@ class DisplayBlock:
     border_colour: Tuple[int, int, int] = ColourConstants.WHITE
     width: int = DimensionConstants.ScriptWidth
     level: int = None
+    clicked: bool = False
 
     def createPygameObj(self):
         pass
@@ -27,8 +29,8 @@ class DisplayBlock:
         pass
 
     def draw(self, session):
-        rect = pygame.Rect(self.center[0] - self.width / 2,
-                           self.center[1] - self.width / 2,
+        rect = pygame.Rect(self.center[1] - self.shape[1] / 2,
+                           self.center[0] - self.shape[0] / 2,
                            self.shape[0],
                            self.shape[1])
 
@@ -36,8 +38,29 @@ class DisplayBlock:
         pygame.draw.rect(session, self.border_colour, rect, width=self.width, border_radius=2)
 
     def updatePos(self, pos: Tuple[int, float], levels: int):
-        self.center = ((pos[0] + 1) * DimensionConstants.WIN_HEIGHT * DimensionConstants.SQUAREUNIT / (levels + 1),
-                       pos[1] * DimensionConstants.WIN_WIDTH * DimensionConstants.SQUAREUNIT)
+        self.center = ((pos[0] + 1) * DimensionConstants.WIN_HEIGHT / (levels + 1),
+                       pos[1] * DimensionConstants.WIN_WIDTH)
+
+    def isinBlock(self, pos):
+        return self.center[1] - self.shape[1] / 2 <= pos[0] <= self.center[1] + self.shape[1] / 2 and \
+               self.center[0] - self.shape[0] / 2 <= pos[1] <= self.center[0] + self.shape[0] / 2
+
+    def highlight(self):
+        self.width = DimensionConstants.ScriptHighlightWidth
+
+    def dehighlight(self):
+        self.width = DimensionConstants.ScriptWidth
+
+    def singleClicked(self):
+        if self.clicked:
+            self.dehighlight()
+        else:
+            self.highlight()
+        self.clicked = not self.clicked
+
+    def doubleClicked(self):
+        self.clicked = True
+        self.highlight()
 
 
 class DisplayConnection:
@@ -47,6 +70,9 @@ class DisplayConnection:
     targetBlock: DisplayBlock = None
     sourceLoc: Tuple = (0, 0)
     targetLoc: Tuple = (0, 0)
+    vertices: List[Tuple[float, float]] = list()
+    width: int = DimensionConstants.ConnectionWidth
+    colour: Tuple[int, int, int] = ColourConstants.WHITE
 
     def createPygameObj(self):
         pass
@@ -55,7 +81,12 @@ class DisplayConnection:
         pass
 
     def draw(self, session):
-        print(self.id)
+        for i in range(len(self.vertices) - 1):
+            pygame.draw.line(session, self.colour, self.vertices[i], self.vertices[i+1],
+                             width=self.width)
+
+    def updatePos(self, vertices: List[Tuple[float, float]]):
+        self.vertices = [flipCoords(pos) for pos in vertices]
 
 
 class DisplayNetwork:
