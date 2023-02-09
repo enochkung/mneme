@@ -25,7 +25,7 @@ class DimensionConstants:
     SQUAREUNIT = 100
     MARGIN = 10
     ConnectionWidth = 2
-    ScriptWidth = 2
+    ScriptWidth = 1
     ScriptHighlightWidth = 5
     ConnectionHighlightWidth = 5
 

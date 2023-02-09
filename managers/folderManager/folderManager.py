@@ -1,21 +1,25 @@
 import json
 import os
+import uuid
 from typing import Dict, List
 
 from managers.folderManager.folderObj import FolderObj, ScriptObj, FolderNetwork
 
 
 class FolderManager:
-    folderStructureDict: Dict = dict()
+    folderStructureDict: Dict[str, FolderObj] = dict()
     folderNetwork: FolderNetwork = None
     folderDict: Dict[str, FolderObj] = dict()
-    fileDict:  Dict[str, ScriptObj] = dict()
+    scriptDict:  Dict[str, ScriptObj] = dict()
+    ignoreFiles: List[str] = ['__init__.py']
 
     def __init__(self):
         self.config = json.load(open('config.json'))
         self.rootFolder = self.getRootFolder()
         self.getFolderStructure()
-        pass
+        for scriptID, script in self.scriptDict.items():
+            assert scriptID == script.id
+        self.zeroingLevels()
 
     def getRootFolder(self) -> str:
         return self.config['folder']
@@ -40,10 +44,11 @@ class FolderManager:
         folder.folder = None
         folder.name = root
         folder.scriptNames = scripts
-        for script in folder.scriptNames:
+        for script in filter(lambda _name: all(ignored_name not in _name for ignored_name in self.ignoreFiles),
+                             folder.scriptNames):
             scriptObj = self.createScriptObj(root, script)
             folder.fileObjs.append(scriptObj)
-            self.fileDict[scriptObj.id] = scriptObj
+            self.scriptDict[scriptObj.id] = scriptObj
 
         folder.subfolderNames = dirs
         return folder
@@ -53,8 +58,14 @@ class FolderManager:
         scriptObj.pathLocation = root + '\\' + script
         scriptObj.folder = root
         scriptObj.name = script
+        scriptObj.level = len(scriptObj.pathLocation.split('\\'))
         scriptObj.extension = script.split('.')[-1]
         return scriptObj
+
+    def zeroingLevels(self):
+        rootLevel = min([scriptObj.level for scriptObj in self.scriptDict.values()])
+        for scriptObj in self.scriptDict.values():
+            scriptObj.level -= rootLevel
 
 
 if __name__ == '__main__':

@@ -1,4 +1,5 @@
 import time
+from typing import Tuple
 
 import numpy as np
 import pygame
@@ -32,3 +33,7 @@ def isMouse(event) -> bool:
 
 def getMousePos():
     return pygame.mouse.get_pos()
+
+
+def flipCoords(coord: Tuple) -> Tuple:
+    return coord[1], coord[0]

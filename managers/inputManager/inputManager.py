@@ -1,4 +1,5 @@
 import time
+from typing import Tuple
 
 import numpy as np
 import pygame
@@ -56,6 +57,9 @@ class InputManager:
         elif event.type == pygame.MOUSEBUTTONUP:
             self.mouseDown = False
             self.lastMouseUpTime = timeMark
+        if event.type == pygame.MOUSEMOTION:
+            pos = getMousePos()
+            self.checkHover(pos)
 
         return True
 
@@ -68,11 +72,16 @@ class InputManager:
 
     def runSingleClick(self):
         pos = getMousePos()
+        self.displayManager.runSingleClick(pos)
         print('single click', pos)
 
     def runDoubleClick(self):
         pos = getMousePos()
+        self.displayManager.runDoubleClick(pos)
         print('double click', pos)
+
+    def checkHover(self, pos: Tuple[float, float]):
+        self.displayManager.checkHover(pos)
 
     def printTestState(self):
         print('firstClick: ', self.firstClick)

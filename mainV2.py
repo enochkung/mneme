@@ -16,33 +16,32 @@ class Mneme:
         self.runPygame(devMode)
 
     def runPygame(self, devMode=False):
-        self.setup()
+        self.setup(devMode=devMode)
         while self.run:
             self.interpretInput()
-            self.updatingDisplay(withGrid=devMode)
+            self.updatingDisplay()
 
-    def setup(self):
+    def setup(self, devMode=False):
         self.setupManagers()
-        self.initialiseDisplay()
+        self.initialiseDisplay(devMode=devMode)
 
     def setupManagers(self):
         self.folderManager = FolderManager()
         self.connectionManager = ConnectionManager(self.folderManager)
+
         self.displayManager = DisplayManager(
             self.connectionManager.connectionDict,
-            self.folderManager.fileDict
+            self.folderManager.scriptDict
         )
         self.inputManager = InputManager(self.displayManager)
 
-    def initialiseDisplay(self):
-        self.displayManager.initialise()
+    def initialiseDisplay(self, devMode=False):
+        self.displayManager.initialise(devMode=devMode)
 
     def interpretInput(self) -> None:
         self.run = self.inputManager.interpretInput()
 
-    def updatingDisplay(self, withGrid=False) -> None:
-        if withGrid:
-            self.displayManager.drawGrid()
+    def updatingDisplay(self) -> None:
         self.displayManager.update()
 
     def gridBackground(self):
