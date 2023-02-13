@@ -66,6 +66,7 @@ class DisplayManager:
                              (DimensionConstants.WIDTH, i * DimensionConstants.SQUAREUNIT))
 
     def drawObjects(self, initialise=False):
+        self.mainScr.fill(ColourConstants.BACKGROUND)
         if initialise:
             self.autosetBlocks()
             self.autosetConnections()
@@ -130,6 +131,16 @@ class DisplayManager:
             elif not block.clicked:
                 block.dehighlight()
 
+    def runDragging(self):
+        pos = pygame.mouse.get_pos()
+        for blockID, block in self.Blocks.items():
+            if block.isinBlock(pos):
+                block.recenter((pos[1], pos[0]))
+                break
+        self.update()
+
     def update(self):
+        self.mainScr.fill(ColourConstants.BACKGROUND)
+        self.drawGrid()
         self.drawObjects()
         pygame.display.update()

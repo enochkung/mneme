@@ -62,6 +62,10 @@ class DisplayBlock:
         self.clicked = True
         self.highlight()
 
+    def recenter(self, pos):
+        self.center = pos
+
+
 
 class DisplayConnection:
     id: uuid = None

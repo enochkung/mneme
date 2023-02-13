@@ -4,6 +4,7 @@ from typing import Tuple
 import numpy as np
 import pygame
 
+from managers.displayManager.displayManager import DisplayManager
 from utils import getMousePos, isQuit, isKey, isMouse
 
 
@@ -11,11 +12,12 @@ class InputManager:
     mouseDown: bool = False
     mouseUp: bool = True
     firstClick: bool = False
+    secondClick: bool = False
     lastMouseDownTime: float = 0.0
     lastMouseUpTime: float = 0.0
     displayManager = None
 
-    def __init__(self, _displayManager):
+    def __init__(self, _displayManager: DisplayManager):
         self.displayManager = _displayManager
 
     def interpretInput(self) -> bool:
@@ -50,16 +52,24 @@ class InputManager:
             if not self.firstClick:
                 self.firstClick = True
             elif self.timeLastButtonDown(timeMark) < 200:
-                self.firstClick = False
-                self.runDoubleClick()
+                self.secondClick = True
+                # self.firstClick = False
+                # self.runDoubleClick()
             self.mouseDown = True
             self.lastMouseDownTime = timeMark
         elif event.type == pygame.MOUSEBUTTONUP:
+            if self.secondClick:
+                self.runDoubleClick()
+                self.firstClick = False
+                self.secondClick = False
             self.mouseDown = False
             self.lastMouseUpTime = timeMark
-        if event.type == pygame.MOUSEMOTION:
+        if event.type == pygame.MOUSEMOTION and not self.mouseDown:
             pos = getMousePos()
             self.checkHover(pos)
+        elif event.type == pygame.MOUSEMOTION and self.mouseDown:
+            self.secondClick = False
+            self.runDragging()
 
         return True
 
@@ -82,6 +92,9 @@ class InputManager:
 
     def checkHover(self, pos: Tuple[float, float]):
         self.displayManager.checkHover(pos)
+
+    def runDragging(self):
+        self.displayManager.runDragging()
 
     def printTestState(self):
         print('firstClick: ', self.firstClick)
