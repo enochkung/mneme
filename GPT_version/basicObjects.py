@@ -20,3 +20,8 @@ class Folder:
     connectors: List[str] = list()
     name: str = None
     mother: str = None
+
+
+class Function:
+    id: str = None
+    file: str = None
