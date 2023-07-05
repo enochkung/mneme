@@ -3,18 +3,20 @@ import uuid
 
 
 class Connector:
-    id: uuid.uuid4 = uuid.uuid4()
-    source: Union[File, Folder] = None
-    target: Union[File, Folder] = None
+    id: str = None
+    source: str = None
+    target: str = None
 
 
 class File:
-    id: uuid.uuid4 = uuid.uuid4()
-    connectors: List[Connector] = list()
+    id: str = None
+    connectors: List[str] = list()
+    name: str = None
+    folder: str = None
 
 
 class Folder:
-    id: uuid.uuid4 = uuid.uuid4()
-    connectors: List[Connector] = list()
-
-
+    id: str = None
+    connectors: List[str] = list()
+    name: str = None
+    mother: str = None
